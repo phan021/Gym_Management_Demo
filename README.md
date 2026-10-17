@@ -107,11 +107,31 @@ Hệ thống cho phép đăng nhập bằng **Tên đăng nhập** hoặc **Emai
 
 ## 🛠️ 4. Hướng Dẫn Cài Đặt & Chạy Dự Án
 
-### Yêu cầu môi trường:
-- Node.js (v18 trở lên)
-- SQL Server (đã có cơ sở dữ liệu `QuanLyPhongGym`)
+### 🌟 Cách 1: Chạy Siêu Tốc Bằng Docker (Khuyến Nghị - 1 Lệnh Duy Nhất)
+> Không cần cài đặt Node.js hay SQL Server vào máy tính! Chỉ cần máy có cài sẵn **Docker Desktop**.
 
-### Khởi động Backend (Port 5000):
+1. Mở Terminal / CMD tại thư mục gốc của dự án.
+2. Khởi chạy toàn bộ hệ thống bằng 1 lệnh duy nhất:
+   ```bash
+   docker compose up -d
+   ```
+3. Mở trình duyệt truy cập ngay: **`http://localhost:5173`**
+   *(Hệ thống sẽ tự động khởi động SQL Server 2022, tự nạp cơ sở dữ liệu và dữ liệu mẫu, tự chạy Backend API và giao diện Frontend).*
+
+* Để dừng hệ thống:
+  ```bash
+  docker compose down
+  ```
+
+---
+
+### 💻 Cách 2: Chạy Thủ Công Từng Bước (Nếu không dùng Docker)
+
+#### Yêu cầu môi trường:
+- Node.js (v18 trở lên)
+- SQL Server (chạy file `Database/full_database.sql` để tạo database `QuanLyPhongGym`)
+
+#### 1. Khởi động Backend (Port 5000):
 ```bash
 cd Backend
 npm install
@@ -119,10 +139,11 @@ npm start
 ```
 Server chạy tại: `http://localhost:5000`
 
-### Khởi động Frontend (Port 5173):
+#### 2. Khởi động Frontend (Port 5173):
 ```bash
 cd Frontend
 npm install
 npm run dev
 ```
 Truy cập giao diện tại: `http://localhost:5173`
+

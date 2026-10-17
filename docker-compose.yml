@@ -1,0 +1,60 @@
+services:
+  # 1. Cơ sở dữ liệu SQL Server 2022
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gym_sqlserver
+    restart: always
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=GymAppPassword123!
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+
+  # 2. Tự động nạp Database và dữ liệu mẫu khi khởi chạy
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: gym_db_init
+    depends_on:
+      - sqlserver
+    volumes:
+      - ./Database/full_database.sql:/full_database.sql:ro
+      - ./Database/init-db.sh:/init-db.sh:ro
+    entrypoint: ["/bin/bash", "/init-db.sh"]
+
+  # 3. Backend API Node.js Express
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    container_name: gym_backend
+    restart: always
+    environment:
+      - PORT=5000
+      - DB_SERVER=sqlserver
+      - DB_PORT=1433
+      - DB_USER=sa
+      - DB_PASSWORD=GymAppPassword123!
+      - DB_NAME=QuanLyPhongGym
+      - JWT_SECRET=super_secret_gym_key_2026_@!
+    ports:
+      - "5000:5000"
+    depends_on:
+      - sqlserver
+      - db-init
+
+  # 4. Frontend React Vite (Nginx)
+  frontend:
+    build:
+      context: ./Frontend
+      dockerfile: Dockerfile
+    container_name: gym_frontend
+    restart: always
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+
+volumes:
+  sqlserver_data:
