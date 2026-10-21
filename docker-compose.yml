@@ -8,38 +8,37 @@ services:
       - ACCEPT_EULA=Y
       - MSSQL_SA_PASSWORD=GymAppPassword123!
     ports:
-      - "1433:1433"
+      # Ánh xạ ra cổng 14333 của máy thật để KHÔNG bị xung đột với SQL Server có sẵn trên máy (cổng 1433)
+      - "14333:1433"
     volumes:
       - sqlserver_data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'GymAppPassword123!' -C -Q 'SELECT 1' > /dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 25
+      start_period: 10s
 
-  # 2. Tự động nạp Database và dữ liệu mẫu khi khởi chạy
+  # 2. Tự động nạp Database và dữ liệu mẫu (chỉ chạy một lần khi SQL Server sẵn sàng)
   db-init:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: gym_db_init
     depends_on:
-      - sqlserver
+      sqlserver:
+        condition: service_healthy
     volumes:
       - ./Database/full_database.sql:/full_database.sql:ro
     entrypoint:
       - /bin/bash
       - -c
       - |
-        echo "Đang đợi SQL Server khởi động..."
-        for i in {1..50}; do
-          /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "GymAppPassword123!" -C -Q "SELECT 1" > /dev/null 2>&1
-          if [ $$? -eq 0 ]; then
-            echo "SQL Server đã sẵn sàng! Đang nạp CSDL QuanLyPhongGym..."
-            /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "GymAppPassword123!" -C -i /full_database.sql
-            echo "Nạp CSDL QuanLyPhongGym thành công!"
-            exit 0
-          fi
-          echo "Đang đợi SQL Server... ($$i/50)"
-          sleep 2
-        done
-        echo "Hết thời gian chờ SQL Server!"
-        exit 1
+        echo "SQL Server đã sẵn sàng! Đang chuẩn hóa định dạng và nạp CSDL QuanLyPhongGym..."
+        sed -i 's/\r$$//' /full_database.sql 2>/dev/null || true
+        /opt/mssql-tools18/bin/sqlcmd -S sqlserver -U sa -P "GymAppPassword123!" -C -i /full_database.sql
+        echo "✅ Đã nạp thành công CSDL QuanLyPhongGym!"
+        exit 0
 
-  # 3. Backend API Node.js Express
+  # 3. Backend API Node.js Express (chỉ bật khi database đã được nạp xong 100%)
   backend:
     build:
       context: ./Backend
@@ -57,8 +56,10 @@ services:
     ports:
       - "5000:5000"
     depends_on:
-      - sqlserver
-      - db-init
+      sqlserver:
+        condition: service_healthy
+      db-init:
+        condition: service_completed_successfully
 
   # 4. Frontend React Vite (Nginx)
   frontend:
